@@ -1,0 +1,50 @@
+---
+title: Docks
+description: 'docks are just big objects'
+---
+
+## Docks
+
+Docks are responsible for holding together all injectables.
+
+## Use
+
+### register
+
+To register your injectable, you need to create a dock using the `Dock` object, and then use the `register` method to register your injectables:
+
+```ts
+import { dock } from "aquinas";
+import { UserService } from "./user-service.injectable";
+
+const AppDock = dock();
+
+AppDock.register(UserService)
+
+export { AppDock };
+```
+
+### merge
+
+You can also merge docks together using the `merge` method:
+
+```ts
+import { dock } from "aquinas";
+import { UserDock } from "./user.dock";
+
+const AppDock = dock();
+
+AppDock.merge(UserDock);
+```
+
+### get
+
+You can get an instance of a registered injectable using the `get` method and the injectable reference:
+
+```ts
+import { dock } from "aquinas";
+import { AppDock } from "./app.dock";
+import { UserServiceReference } from "./user-service.reference";
+
+const userService = AppDock.get(UserServiceReference);
+```

@@ -1,0 +1,5 @@
+{
+	"title": "API",
+	"pages": ["references", "injectables", "docks", "advanced-usage"],
+	"defaultOpen": true
+}

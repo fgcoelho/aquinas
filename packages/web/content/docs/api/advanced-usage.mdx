@@ -1,0 +1,127 @@
+---
+title: Advanced Usage
+description: advanced usage of aquinas
+---
+
+## Derived References
+
+You can create derived references using the `derivedReference` function and `Reference` type. 
+
+This is useful when you want to create a reference that is based on another reference.
+
+```ts tab="i-filter.ts"
+interface Filter<E extends ApplicationError> {
+    catch(error: E): void;
+}
+
+export function FilterReference<E extends ApplicationError>(ref: Reference<E>) {
+    return derivedReference<Filter<E>>("Filter", ref);
+}
+```
+
+```ts tab="database.i-error.ts"
+import { type Reference, derivedReference } from "aquinas";
+import type { ApplicationError } from "./application-error";
+
+interface DatabaseErrorData extends ApplicationError {
+    query: string;
+    reason: string;
+}
+
+export const DatabaseErrorReference = reference<DatabaseErrorData>("DatabaseError");
+```
+
+```ts tab="database.filter.ts"
+import { injectable } from "aquinas";
+import { FilterReference } from "./i-filter";
+import { DatabaseErrorReference } from "./database.i-error";
+
+export const DatabaseErrorFilter = injectable(FilterReference(DatabaseErrorReference))
+    .implements(() => ({
+        catch(error) {
+            console.error(`Database error on query ${error.query}: ${error.reason}`);
+        }
+    }));
+```
+
+## Overwriting Injectables
+
+Suppose you have a bunch of usecases in your application, each one depending on a repository.
+
+It may happen that you want to run some usecases in a transaction, but that's hard to do if your usecases depend directly on the repository.
+
+You can solve this problem by joining together some features of Aquinas by overwriting the global DatabaseService.
+
+The code below will make all database calls go through the transaction context, no matter how nested the repositories are.
+
+```ts tab="transaction.i-service.ts"
+import { sql } from "@/database/sql";
+import { dock, injectable, resolveReferences } from "aquinas";
+import { DatabaseServiceReference } from "./database.i-service";
+
+export const TransactionService = injectable(TransactionServiceRef)
+	.deps({ databaseService: DatabaseServiceReference })
+	.implements(({ ctx, databaseService }) => {
+		let refs = {};
+
+		return {
+			deps(newRefs) {
+				refs = { ...refs, ...newRefs };
+
+				return this;
+			},
+
+			async run(fn) {
+				return await databaseService.transaction(async (tx) => {
+					const transactionDock = dock();
+
+					transactionDock.merge(ctx.dock);
+
+					const NewDatabaseService = injectable(
+						DatabaseServiceReference,
+					)
+                     .implements(() => tx);
+
+					transactionDock.overwrite(NewDatabaseService);
+
+					const deps = resolveReferences(refs, transactionDock);
+
+					await fn({
+						undo: async () => {
+							await tx.query(sql.void`ROLLBACK`);
+						},
+						...deps,
+					});
+				});
+			},
+		};
+	});
+```
+
+This allows you to run any usecase in a transaction, without having to change the usecase/repository itself.
+
+```ts tab="some.usecase.ts"
+import { injectable } from "aquinas";
+import { RegisterUserUsecaseReference } from "./register-user.i-usecase";
+import { ActivateUserSubscriptionUsecaseReference } from "./activate-user-subscription.i-usecase";
+import { TransactionServiceReference } from "./transaction.i-service";
+
+export const SomeUsecase = injectable(SomeUsecaseRef)
+  .deps({
+    transactionService: TransactionServiceReference,
+  })
+  .implements(({ registerUserUsecase, activateUserSubscriptionUsecase, transactionService }) => ({
+    async execute({ user }) {
+      await transactionService
+        .deps({
+          registerUserUsecase: RegisterUserUsecaseReference,
+          activateUserSubscriptionUsecase: ActivateUserSubscriptionUsecaseReference,
+        })
+        .run(async ({ undo }) => {
+            await registerUserUsecase.execute(user);
+
+            await activateUserSubscriptionUsecase.execute(user.id);
+        });
+    },
+  }));
+```

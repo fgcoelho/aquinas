@@ -1,0 +1,169 @@
+---
+title: Quickstart
+description: get started with aquinas
+icon: CircleQuestionMark
+---
+
+Aquinas is a dependency inversion library that uses **functions and objects** instead of **classes and decorators**.
+
+## Installation
+
+```bash tab="npm"
+npm install aquinas
+```
+
+```bash tab="pnpm"
+pnpm add aquinas
+```
+
+```bash tab="yarn"
+yarn add aquinas
+```
+
+## Concepts
+
+If you never heard about IoC, DI or Clean Architecture, you might want to check some resources about it first, but here is a quick overview of the workflow we will follow:
+
+1. Create an interface representing some service (e.g. `IUserRepository`).
+
+2. Bind that interface to a reference (e.g. `UserRepositoryReference`).
+
+3. Create an injectable that implements that reference (e.g. `UserRepository`).
+
+4. Create a dock to hold that injectable (e.g. `UserDock`).
+
+## Create your first references
+
+Usually, references go into the Domain layer, where your models are defined.
+
+```ts title="user.i-repository.ts"
+import { reference } from "aquinas";
+import type { User } from "./user";
+
+export interface IUserRepository {
+    createUser(user: User): Promise<void>;
+}
+
+export const UserRepositoryReference = reference<IUserRepository>("UserRepository");
+```
+
+```ts title="register-user.i-usecase.ts"
+import { reference } from "aquinas";
+
+export interface IRegisterUserUsecase {
+    execute(user: User): Promise<User>;
+}
+
+export const RegisterUserUsecaseReference = reference<IRegisterUserUsecase>("RegisterUserUsecase");
+```
+
+## Create your first injectable
+
+```ts title="register-user.usecase.ts"
+import { injectable } from "aquinas";
+import { RegisterUserUsecaseReference } from "./register-user.i-usecase";
+
+export const RegisterUserUsecase = injectable(RegisterUserUsecaseReference)
+    .deps({
+        userRepository: UserRepositoryReference,
+    })
+    .implements(() => ({
+        async execute(user) {
+            await this.userRepository.createUser(user);
+        }
+    }));
+```
+
+If you just copied over the code above, you will not get any errors at first, but if you try to run your app, you will get an error saying that `UserRepository` is not registered.
+
+That's because we haven't created the `UserRepository` injectable yet.
+
+```ts title="user.repository.ts"
+import { injectable } from "aquinas";
+
+export const UserRepository = injectable(UserRepositoryReference).implements(() => ({
+    async createUser(user) {
+        // persist user to database
+    },
+}))
+```
+
+## Register your injectables in a dock
+
+A dock is what holds your injectables and allows you to merge multiple docks together.
+
+```ts title="user.dock.ts"
+import { dock } from "aquinas";
+import { UserRepository } from "./core/user.repository";
+import { RegisterUserUsecase } from "./core/register-user.usecase";
+
+const UserDock = dock();
+
+UserDock.register(UserRepository, RegisterUserUsecase);
+
+export { UserDock };
+```
+
+Usually you will have multiple docks in your application, one for each module or feature, so you will need to merge them together in your app's main dock.
+
+```ts title="app.dock.ts"
+import { dock } from "aquinas";
+import { UserDock } from "./user.dock";
+
+const AppDock = dock();
+
+AppDock.merge(UserDock);
+// you can merge more docks here
+
+export { AppDock };
+```
+
+## Running your app
+
+Assuming you created controllers or other entrypoints following the same steps, you will just need to resolve them from the `AppDock` and start your app.
+
+```ts title="main.ts"
+import { Hono } from 'hono'
+import { serve } from '@hono/node-server'
+import { AppDock } from "./app.dock";
+import { UserControllerReference } from "./domain/user.controller";
+
+const app = new Hono();
+
+const controllers = AppDock.get({
+    user: UserControllerReference,
+});
+
+app.get("/users", async (c) => await controllers.user.get(c));
+
+serve(app)
+```
+
+## Final Structure
+
+import { File, Folder, Files } from 'fumadocs-ui/components/files';
+
+This will totally depend on your project structure, but here is a simple example of how your project could look like after following this guide:
+
+<Files>
+  <Folder name="app" defaultOpen>
+    <File name="app.dock.ts" />
+    <File name="main.ts" />
+  </Folder>
+  <Folder name="domain" defaultOpen>
+      <Folder name="user" defaultOpen>
+        <File name="user.i-repository.ts" />
+        <File name="register-user.i-usecase.ts" />
+        <File name="user.controller.ts" />
+      </Folder>
+  </Folder>
+  <Folder name="core" defaultOpen>
+        <File name="register-user.usecase.ts" />
+  </Folder>
+  <Folder name="infra" defaultOpen>
+        <File name="user.repository.ts" />
+   </Folder>
+   <Folder name="presentation" defaultOpen>
+        <File name="user.controller.ts" />
+   </Folder>
+</Files>

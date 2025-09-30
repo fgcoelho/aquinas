@@ -1,0 +1,26 @@
+---
+title: References
+description: references are just symbols
+---
+
+## References
+
+When using Aquinas, your domain becomes composed of references.
+
+Internally, references are actually instances of `Reference`, which is a class that holds a symbol and a type.
+
+## Use
+
+You can create a reference using the `reference` function:
+
+```ts
+import { reference } from "aquinas";
+
+type UserService = {
+    getUser(id: string): Promise<User>;
+};
+
+const UserServiceReference = reference<UserService>("UserService");
+```
+
+To use your reference, check next section on injectables.
