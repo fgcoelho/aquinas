@@ -1,19 +1,19 @@
 import "@/app/global.css";
 import { RootProvider } from "fumadocs-ui/provider";
-import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import { createMetadata } from "@/lib/metadata";
 
 const inter = Inter({
 	subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
+export const metadata = createMetadata({
 	title: {
 		template: "Aquinas | %s",
 		default: "Aquinas",
 	},
 	description: "dependency inversion w/o classes",
-};
+});
 
 export default function Layout({ children }: LayoutProps<"/">) {
 	return (
