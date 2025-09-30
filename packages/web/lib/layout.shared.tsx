@@ -9,7 +9,7 @@ import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
  */
 export function baseOptions(): BaseLayoutProps {
 	return {
-		githubUrl: "https://github.com/Fgc17/aquinas",
+		githubUrl: "https://github.com/fgcoelho/aquinas",
 		nav: {
 			title: (
 				<>
