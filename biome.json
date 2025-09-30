@@ -18,6 +18,7 @@
 			"**/*.tsx",
 			"**/*.json",
 			"!**/.next",
+			"!**/.source",
 			"!**/dist",
 			"!**/node_modules",
 			"!**/coverage"
@@ -28,22 +29,11 @@
 		"enabled": true,
 		"rules": {
 			"recommended": true,
-			"style": {
-				"useTemplate": "off",
-				"noParameterAssign": "off",
-				"noNonNullAssertion": "off"
-			},
 			"complexity": {
-				"useArrowFunction": "off"
-			},
-			"correctness": {
-				"noConstructorReturn": "off",
-				"noUnusedVariables": "off"
+				"noBannedTypes": "off"
 			},
 			"suspicious": {
-				"noConfusingVoidType": "off",
-				"noEmptyInterface": "off",
-				"noArrayIndexKey": "off"
+				"noExplicitAny": "off"
 			},
 			"a11y": {
 				"noSvgWithoutTitle": "off"
@@ -55,6 +45,7 @@
 			"**/*.tsx",
 			"**/*.json",
 			"!**/.next",
+			"!**/.source",
 			"!**/dist",
 			"!**/node_modules",
 			"!**/eslint.config.ts",
@@ -71,6 +62,7 @@
 			"**/*.ts",
 			"**/*.tsx",
 			"**/*.json",
+			"!**/.source",
 			"!**/.next",
 			"!**/dist",
 			"!**/node_modules",
