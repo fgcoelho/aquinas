@@ -134,7 +134,7 @@ const controllers = AppDock.get({
     user: UserControllerReference,
 });
 
-app.get("/users", async (c) => await controllers.user.get(c));
+app.get("/users", controllers.user.get);
 
 serve(app)
 ```

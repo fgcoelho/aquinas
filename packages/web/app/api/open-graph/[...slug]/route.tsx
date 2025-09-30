@@ -19,11 +19,20 @@ export const GET = metadataImage.createAPI(async (page) => {
 				backgroundColor: "#151515",
 			}}
 		>
-			💉
-			<h1
+			<p
 				style={{
 					textAlign: "center",
 					marginTop: "1rem",
+					fontSize: "6rem",
+					fontWeight: "700",
+				}}
+			>
+				💉
+			</p>
+			<h1
+				style={{
+					textAlign: "center",
+					marginTop: "0.1rem",
 					fontSize: "5rem",
 					fontWeight: "700",
 				}}
