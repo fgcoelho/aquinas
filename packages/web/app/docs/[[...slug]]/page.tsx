@@ -13,6 +13,7 @@ import { source } from "lib/source";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { V, X } from "@/components/vx";
+import { metadataImage } from "@/lib/metadata";
 
 export default async function Page(props: PageProps<"/docs/[[...slug]]">) {
 	const params = await props.params;
@@ -53,8 +54,8 @@ export async function generateMetadata(
 	const page = source.getPage(params.slug);
 	if (!page) notFound();
 
-	return {
+	return metadataImage.withImage(page.slugs, {
 		title: page.data.title,
 		description: page.data.description,
-	};
+	});
 }
