@@ -1,5 +1,68 @@
 {
 	"name": "aquinas",
-	"version": "0.0.1",
-	"license": "MIT"
+	"description": "dependency inversion w/o classes",
+	"author": "Fernando Coelho",
+	"publishConfig": {
+		"access": "public"
+	},
+	"version": "0.0.2",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/fgcoelho/aquinas.git"
+	},
+	"homepage": "https://aquinas.vercel.app",
+	"files": [
+		"dist"
+	],
+	"keywords": [
+		"IOC",
+		"dependency-injection",
+		"dependency-inversion",
+		"di",
+		"design-patterns",
+		"clean-architecture",
+		"solid"
+	],
+	"type": "module",
+	"main": "./dist/index.cjs",
+	"types": "./dist/index.d.cts",
+	"exports": {
+		".": "./dist/index.cjs"
+	},
+	"typesVersions": {
+		"*": {
+			".": [
+				"./dist/index.d.cts"
+			]
+		}
+	},
+	"scripts": {
+		"------------- toolchain -------------": "-------------",
+		"format": "biome format --write",
+		"lint": "biome lint --error-on-warnings",
+		"checktypes": "tsc --noEmit",
+		"check": "pnpm checktypes && pnpm lint",
+		"test": "vitest",
+		"------------- dev -------------": "-------------",
+		"dev": "pnpm tsup --env.mode dev",
+		"------------- build -------------": "-------------",
+		"build": "rm -rf dist && pnpm tsup --env.mode release",
+		"bundlesize": "pnpm build --metafile && npm pack --dry-run",
+		"bundlesize:dev": "pnpm tsup --metafile && npm pack --dry-run",
+		"------------- publishing -------------": "-------------",
+		"release": "pnpm check && pnpm build && pnpm publish --no-git-checks",
+		"release:rc": "pnpm check && pnpm build && pnpm version prerelease --preid=rc"
+	},
+	"devDependencies": {
+		"@types/node": "24.6.0",
+		"esbuild": "0.25.10",
+		"terser": "5.44.0",
+		"tsup": "8.5.0",
+		"typescript": "5.9.3",
+		"@biomejs/biome": "2.2.4"
+	},
+	"dependencies": {
+		"inversify": "7.10.2"
+	}
 }
