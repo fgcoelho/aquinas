@@ -8,16 +8,8 @@ Aquinas is a dependency inversion library that uses **functions and objects** in
 
 ## Installation
 
-```bash tab="npm"
-npm install aquinas
-```
-
-```bash tab="pnpm"
-pnpm add aquinas
-```
-
-```bash tab="yarn"
-yarn add aquinas
+```package-install
+aquinas
 ```
 
 ## Concepts
@@ -36,91 +28,211 @@ If you never heard about IoC, DI or Clean Architecture, you might want to check 
 
 Usually, references go into the Domain layer, where your models are defined.
 
-```ts title="user.i-repository.ts"
-import { reference } from "aquinas";
-import type { User } from "./user";
+<Tabs groupId="references" persist items={["Typescript", "Javascript"]}>
+    <Tab value="Typescript">
+        ```ts title="user.i-repository.ts"
+        import { reference } from "aquinas";
+        import type { User } from "./user";
 
-export interface IUserRepository {
-    createUser(user: User): Promise<void>;
-}
+        export interface IUserRepository {
+            createUser(user: User): Promise<void>;
+        }
 
-export const UserRepositoryReference = reference<IUserRepository>("UserRepository");
-```
+        export const UserRepositoryReference = reference<IUserRepository>("UserRepository");
+        ```
 
-```ts title="register-user.i-usecase.ts"
-import { reference } from "aquinas";
+        ```ts title="register-user.i-usecase.ts"
+        import { reference } from "aquinas";
+        import type { User } from "./user";
 
-export interface IRegisterUserUsecase {
-    execute(user: User): Promise<User>;
-}
+        export interface IRegisterUserUsecase {
+            execute(user: User): Promise<User>;
+        }
 
-export const RegisterUserUsecaseReference = reference<IRegisterUserUsecase>("RegisterUserUsecase");
-```
+        export const RegisterUserUsecaseReference = reference<IRegisterUserUsecase>("RegisterUserUsecase");
+        ```
+    </Tab>
+
+    <Tab value="Javascript">
+        ```js title="user.i-repository.js"
+        import { reference } from "aquinas";
+
+        /**
+         * @typedef {Object} User
+         * @property {string} id
+         * @property {string} name
+         * @property {string} email
+         */
+
+        /**
+         * @typedef {Object} IUserRepository
+         * @property {(user: User) => Promise<void>} createUser
+         */
+        export const UserRepositoryReference = reference("UserRepository");
+        ```
+
+        ```js title="register-user.i-usecase.js"
+        import { reference } from "aquinas";
+
+        /**
+         * @typedef {Object} User
+         * @property {string} id
+         * @property {string} name
+         * @property {string} email
+         */
+
+        /**
+         * @typedef {Object} IRegisterUserUsecase
+         * @property {(user: User) => Promise<User>} execute
+         */
+        export const RegisterUserUsecaseReference = reference("RegisterUserUsecase");
+        ```
+    </Tab>
+</Tabs>
 
 ## Create your first injectable
 
-```ts title="register-user.usecase.ts"
-import { injectable } from "aquinas";
-import { RegisterUserUsecaseReference } from "./register-user.i-usecase";
+<Tabs groupId="injectables" persist items={["Typescript", "Javascript"]}>
+    <Tab value="Typescript">
+        ```ts title="register-user.usecase.ts"
+        import { injectable } from "aquinas";
+        import { RegisterUserUsecaseReference } from "./register-user.i-usecase";
+        import { UserRepositoryReference } from "./user.i-repository";
 
-export const RegisterUserUsecase = injectable(RegisterUserUsecaseReference)
-    .deps({
-        userRepository: UserRepositoryReference,
-    })
-    .implements(() => ({
-        async execute(user) {
-            await this.userRepository.createUser(user);
-        }
-    }));
-```
+        export const RegisterUserUsecase = injectable(RegisterUserUsecaseReference)
+            .deps({
+                userRepository: UserRepositoryReference,
+            })
+            .implements(({ userRepository }) => ({
+                async execute(user) {
+                    await userRepository.createUser(user);
+                    return user;
+                }
+            }));
+        ```
+
+        ```ts title="user.repository.ts"
+        import { injectable } from "aquinas";
+        import { UserRepositoryReference } from "./user.i-repository";
+
+        export const UserRepository = injectable(UserRepositoryReference)
+            .implements(() => ({
+                async createUser(user) {
+                    // persist user to database
+                    console.log('Creating user:', user);
+                },
+            }));
+        ```
+    </Tab>
+
+    <Tab value="Javascript">
+        ```js title="register-user.usecase.js"
+        import { injectable } from "aquinas";
+        import { RegisterUserUsecaseReference } from "./register-user.i-usecase.js";
+        import { UserRepositoryReference } from "./user.i-repository.js";
+
+        export const RegisterUserUsecase = injectable(RegisterUserUsecaseReference)
+            .deps({
+                userRepository: UserRepositoryReference,
+            })
+            .implements(({ userRepository }) => ({
+                async execute(user) {
+                    await userRepository.createUser(user);
+                    return user;
+                }
+            }));
+        ```
+
+        ```js title="user.repository.js"
+        import { injectable } from "aquinas";
+        import { UserRepositoryReference } from "./user.i-repository.js";
+
+        export const UserRepository = injectable(UserRepositoryReference)
+            .implements(() => ({
+                async createUser(user) {
+                    // persist user to database
+                    console.log('Creating user:', user);
+                },
+            }));
+        ```
+    </Tab>
+</Tabs>
 
 If you just copied over the code above, you will not get any errors at first, but if you try to run your app, you will get an error saying that `UserRepository` is not registered.
 
-That's because we haven't created the `UserRepository` injectable yet.
-
-```ts title="user.repository.ts"
-import { injectable } from "aquinas";
-
-export const UserRepository = injectable(UserRepositoryReference).implements(() => ({
-    async createUser(user) {
-        // persist user to database
-    },
-}))
-```
+That's because we haven't created the `UserRepository` injectable yet (which we just did above).
 
 ## Register your injectables in a dock
 
 A dock is what holds your injectables and allows you to merge multiple docks together.
 
-```ts title="user.dock.ts"
-import { dock } from "aquinas";
-import { UserRepository } from "./core/user.repository";
-import { RegisterUserUsecase } from "./core/register-user.usecase";
+<Tabs groupId="docks" persist items={["Typescript", "Javascript"]}>
+    <Tab value="Typescript">
 
-const UserDock = dock();
+    ```ts title="user.dock.ts"
+    import { dock } from "aquinas";
+    import { UserRepository } from "./core/user.repository";
+    import { RegisterUserUsecase } from "./core/register-user.usecase";
 
-UserDock.register(UserRepository, RegisterUserUsecase);
+    const UserDock = dock();
 
-export { UserDock };
-```
+    UserDock.register(UserRepository, RegisterUserUsecase);
+
+    export { UserDock };
+    ```
+
+    ```ts title="app.dock.ts"
+    import { dock } from "aquinas";
+    import { UserDock } from "./user.dock";
+
+    const AppDock = dock();
+
+    AppDock.merge(UserDock);
+    // you can merge more docks here
+
+    export { AppDock };
+    ```
+
+    </Tab>
+
+    <Tab value="Javascript">
+
+    ```js title="user.dock.js"
+    import { dock } from "aquinas";
+    import { UserRepository } from "./core/user.repository.js";
+    import { RegisterUserUsecase } from "./core/register-user.usecase.js";
+
+    const UserDock = dock();
+
+    UserDock.register(UserRepository, RegisterUserUsecase);
+
+    export { UserDock };
+    ```
+
+    ```js title="app.dock.js"
+    import { dock } from "aquinas";
+    import { UserDock } from "./user.dock.js";
+
+    const AppDock = dock();
+
+    AppDock.merge(UserDock);
+    // you can merge more docks here
+
+    export { AppDock };
+    ```
+
+    </Tab>
+</Tabs>
 
 Usually you will have multiple docks in your application, one for each module or feature, so you will need to merge them together in your app's main dock.
-
-```ts title="app.dock.ts"
-import { dock } from "aquinas";
-import { UserDock } from "./user.dock";
-
-const AppDock = dock();
-
-AppDock.merge(UserDock);
-// you can merge more docks here
-
-export { AppDock };
-```
 
 ## Running your app
 
 Assuming you created controllers or other entrypoints following the same steps, you will just need to resolve them from the `AppDock` and start your app.
+
+<Tabs groupId="main" persist items={["Typescript", "Javascript"]}>
+
+<Tab value="Typescript">
 
 ```ts title="main.ts"
 import { Hono } from 'hono'
@@ -138,6 +250,31 @@ app.get("/users", controllers.user.get);
 
 serve(app)
 ```
+
+</Tab>
+
+<Tab value="Javascript">
+
+```js title="main.js"
+import { Hono } from 'hono'
+import { serve } from '@hono/node-server'
+import { AppDock } from "./app.dock.js";
+import { UserControllerReference } from "./domain/user.controller.js";
+
+const app = new Hono();
+
+const controllers = AppDock.get({
+    user: UserControllerReference,
+});
+
+app.get("/users", controllers.user.get);
+
+serve(app)
+```
+
+</Tab>
+
+</Tabs>
 
 ## Final Structure
 
