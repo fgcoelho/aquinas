@@ -85,7 +85,9 @@ const UserServiceReference = reference<IUserService>("UserService");
 
 // 2. Create an injectable
 const UserService = injectable(UserServiceReference)
-  .deps({ userRepository: UserRepositoryReference })
+  .deps({ 
+  	userRepository: UserRepositoryReference 
+  })
   .implements(({ userRepository }) => ({
     async createUser(data) {
       return await userRepository.save(data);
@@ -111,7 +113,9 @@ const UserServiceReference = reference("UserService");
 
 // 2. Create an injectable
 const UserService = injectable(UserServiceReference)
-  .deps({ userRepository: UserRepositoryReference })
+  .deps({ 
+  	userRepository: UserRepositoryReference 
+  })
   .implements(({ userRepository }) => ({
     async createUser(data) {
       return await userRepository.save(data);
