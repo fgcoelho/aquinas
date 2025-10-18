@@ -1,6 +1,5 @@
-import { dock as createDock, type Dock, isDock } from "./dock";
+import { dock as createDock, type Dock } from "./dock";
 import { Reference } from "./reference";
-import { resolveReferences } from "./resolve-references";
 
 type RefMap = Record<string, Reference<any>>;
 type ResolveRefs<T extends RefMap> = {
@@ -50,7 +49,8 @@ class InjectableBuilder<T, Refs = {}, State = {}> {
 		});
 
 		const implementation = (dock: Dock) => {
-			const deps = resolveReferences(this.refs, dock);
+			const deps = dock.get(this.refs);
+
 			return factory(createContext(dock, deps));
 		};
 
