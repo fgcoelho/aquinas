@@ -9,9 +9,21 @@ Docks are responsible for holding together all injectables.
 
 ## Use
 
+### get
+
+Get an instance of a registered injectable using the `get` method and the injectable reference:
+
+```ts
+import { dock } from "aquinas";
+import { AppDock } from "./app.dock";
+import { UserServiceReference } from "./user-service.reference";
+
+const userService = AppDock.get(UserServiceReference);
+```
+
 ### register
 
-To register your injectable, you need to create a dock using the `Dock` object, and then use the `register` method to register your injectables:
+Create a dock using the `Dock` object, and then use the `register` method to register your injectables:
 
 ```ts
 import { dock } from "aquinas";
@@ -26,7 +38,7 @@ export { AppDock };
 
 ### merge
 
-You can also merge docks together using the `merge` method:
+Merge docks together using the `merge` method:
 
 ```ts
 import { dock } from "aquinas";
@@ -37,14 +49,21 @@ const AppDock = dock();
 AppDock.merge(UserDock);
 ```
 
-### get
+### override 
 
-You can get an instance of a registered injectable using the `get` method and the injectable reference:
+Override injectables in a dock using the `override` method:
 
 ```ts
 import { dock } from "aquinas";
-import { AppDock } from "./app.dock";
-import { UserServiceReference } from "./user-service.reference";
+import { DatabaseServiceReference } from "./database-service.reference";
+import { MockDatabaseService } from "./mock-database-service.injectable";
 
-const userService = AppDock.get(UserServiceReference);
+const AppDock = dock();
+
+AppDock.override(DatabaseServiceReference, MockDatabaseService);
+
+// You can also override with an implementation function
+AppDock.override(DatabaseServiceReference, (dock) => {
+  return new MockDatabaseService();
+});
 ```
