@@ -5,13 +5,11 @@ description: references are just symbols
 
 ## References
 
-When using Aquinas, your domain becomes composed of references.
-
-Internally, references are actually instances of `Reference`, which is a class that holds a symbol and a type.
+When using Aquinas, your domain layer becomes composed of references.
 
 ## Use
 
-You can create a reference using the `reference` function:
+Create a reference using the `reference` function:
 
 ```ts
 import { reference } from "aquinas";
@@ -22,5 +20,3 @@ type UserService = {
 
 const UserServiceReference = reference<UserService>("UserService");
 ```
-
-To use your reference, check next section on injectables.
