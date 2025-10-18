@@ -6,16 +6,20 @@ icon: CircleQuestionMark
 
 ## The Problem
 
-Inversion of Control (IoC) is great, really great. 
+Inversion of Control (IoC) is great, really great.
 
-Unfortunately, IoC likes OOP, and OOP likes classes, and classes likes decorators, and decorators are still in proposal for Javascript.
+Unfortunately, IoC is often tied to Object Oriented Programming (OOP) principles, which means most IoC libraries require the use of classes, decorators and reflection metadata.
 
-Most times this isn't a big deal, you just go with Typescript, install `reflect-metadata` and drop some configs under `tsconfig.json`.
+This leads to some headaches, not to mention the fact that you'll have to use decorators and classes only because of IoC, while the rest of your codebase is all on callbacks and consts.
 
 But what if we could just ignore the use of decorators, classes and reflect-metadata?
 
 Moreover, what if we could do it in plain Javascript, without Typescript? And still have type safety?
 
-That's where Aquinas comes in by providing a simple API around [inversifyJS](https://inversify.io/).
+That's where Aquinas comes in by providing a simple API around [owja/ioc](https://github.com/owja/ioc).
 
 Check [quickstart](./docs/quickstart) to see how it works.
+
+## Can I use Aquinas with classes?
+
+No, check [inversifyJS](https://inversify.io/) for that.
