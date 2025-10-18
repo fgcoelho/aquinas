@@ -1,162 +1,79 @@
-import { dock as createDock, type Dock } from "./dock";
-import type { Reference } from "./reference";
+import { dock as createDock, type Dock, isDock } from "./dock";
+import { Reference } from "./reference";
 import { resolveReferences } from "./resolve-references";
 
-type BaseObject = {};
+type RefMap = Record<string, Reference<any>>;
+type ResolveRefs<T extends RefMap> = {
+	[K in keyof T]: T[K] extends Reference<infer U> ? U : never;
+};
 
-type InjectableObjectFactory<
-	Refs extends BaseObject,
-	Type,
-	State extends BaseObject,
-> = (context: Refs & State) => Type;
+class Injectable<T> {
+	reference: Reference<T>;
+	implementation: (dock: Dock) => T;
 
-interface ContextHelper {
-	get<T>(ref: Reference<T>): T;
-	safeGet<T>(ref: Reference<T>): T | undefined;
-	dock: Dock;
+	constructor(reference: Reference<T>, implementation: (dock: Dock) => T) {
+		this.reference = reference;
+		this.implementation = implementation;
+	}
 }
 
-interface InjectableBuilder<
-	ResolvedRefs extends BaseObject,
-	Type,
-	State extends BaseObject,
-> {
-	deps<
-		NewDepsConfig extends Record<string, Reference<any>>,
-		NewlyResolvedRefs extends {
-			[K in keyof NewDepsConfig]: NewDepsConfig[K] extends Reference<
-				infer R
-			>
-				? R
-				: never;
-		},
-	>(
-		references: NewDepsConfig,
-	): InjectableBuilder<ResolvedRefs & NewlyResolvedRefs, Type, State>;
+class InjectableBuilder<T, Refs = {}, State = {}> {
+	constructor(
+		private reference: Reference<T>,
+		private refs: RefMap = {},
+		private stateFactory?: (deps: any) => any,
+	) {}
 
-	init<NewState extends BaseObject>(
-		initFactory: (refs: ResolvedRefs) => NewState,
-	): InjectableBuilder<ResolvedRefs, Type, NewState>;
+	deps<NewRefs extends RefMap>(
+		newRefs: NewRefs,
+	): InjectableBuilder<T, Refs & ResolveRefs<NewRefs>, State> {
+		return new InjectableBuilder(
+			this.reference,
+			{ ...this.refs, ...newRefs },
+			this.stateFactory,
+		);
+	}
+
+	init<NewState>(
+		factory: (refs: Refs) => NewState,
+	): InjectableBuilder<T, Refs, NewState> {
+		return new InjectableBuilder(this.reference, this.refs, factory);
+	}
 
 	implements(
-		factory: InjectableObjectFactory<
-			ResolvedRefs & { ctx: ContextHelper },
-			Type,
-			State
-		>,
-	): Injectable<ResolvedRefs, Type>;
-}
+		factory: (context: Refs & State & { ctx: Dock }) => T,
+	): Injectable<T> {
+		const createContext = (dock?: Dock, deps: any = {}) => ({
+			...deps,
+			...(this.stateFactory ? this.stateFactory(deps) : {}),
+			ctx: dock ?? createDock(),
+		});
 
-interface Injectable<ResolvedRefs extends BaseObject, Type> {
-	reference: Reference<Type>;
-	factory: (dock: Dock) => Type;
-	instantiate: (deps?: ResolvedRefs) => Type;
-}
-
-function createContextHelper(dock?: Dock): ContextHelper {
-	if (!dock) {
-		return {
-			get: () => {
-				throw new Error("Dock not available in this context");
-			},
-			safeGet: () => {
-				throw new Error("Dock not available in this context");
-			},
-			dock: createDock(),
+		const implementation = (dock: Dock) => {
+			const deps = resolveReferences(this.refs, dock);
+			return factory(createContext(dock, deps));
 		};
-	}
 
-	return {
-		get: <T>(ref: Reference<T>) => dock.get<T>(ref),
-		safeGet: <T>(ref: Reference<T>) => {
-			try {
-				return dock.get<T>(ref);
-			} catch {
-				return undefined;
-			}
-		},
-		dock,
-	};
+		return new Injectable(this.reference, implementation);
+	}
 }
 
-function injectable<Type>(
-	reference: Reference<Type>,
-): InjectableBuilder<BaseObject, Type, BaseObject> {
-	const references: Record<string, Reference<unknown>> = {};
-	let initStateFactory: ((refs: any) => any) | undefined;
-
-	function createBuilder<
-		CurResolvedRefs extends BaseObject,
-		CurState extends BaseObject,
-	>(): InjectableBuilder<CurResolvedRefs, Type, CurState> {
-		return {
-			deps: <
-				NewDepsConfig extends Record<string, Reference<any>>,
-				NewlyResolvedRefs extends {
-					[K in keyof NewDepsConfig]: NewDepsConfig[K] extends Reference<
-						infer R
-					>
-						? R
-						: never;
-				},
-			>(
-				newRefs: NewDepsConfig,
-			) => {
-				Object.assign(references, newRefs);
-				return createBuilder<
-					CurResolvedRefs & NewlyResolvedRefs,
-					CurState
-				>();
-			},
-
-			init: <NewState extends BaseObject>(
-				factory: (refs: CurResolvedRefs) => NewState,
-			) => {
-				initStateFactory = factory as (refs: any) => any;
-				return createBuilder<CurResolvedRefs, NewState>();
-			},
-
-			implements: (
-				implFactory: InjectableObjectFactory<
-					CurResolvedRefs & { ctx: ContextHelper },
-					Type,
-					CurState
-				>,
-			) => ({
-				reference,
-				factory: (dock: Dock) => {
-					const deps = resolveReferences(
-						references,
-						dock,
-					) as CurResolvedRefs;
-
-					const context: CurResolvedRefs &
-						CurState & { ctx: ContextHelper } = {
-						...deps,
-						...(initStateFactory ? initStateFactory(deps) : {}),
-						ctx: createContextHelper(dock),
-					};
-
-					return implFactory(context);
-				},
-
-				instantiate: (
-					deps: CurResolvedRefs = {} as CurResolvedRefs,
-				) => {
-					const context: CurResolvedRefs &
-						CurState & { ctx: ContextHelper } = {
-						...deps,
-						...(initStateFactory ? initStateFactory(deps) : {}),
-						ctx: createContextHelper(),
-					};
-
-					return implFactory(context);
-				},
-			}),
-		};
-	}
-
-	return createBuilder<BaseObject, BaseObject>();
+function injectable<T>(reference: Reference<T>): InjectableBuilder<T> {
+	return new InjectableBuilder(reference);
 }
 
-export { type Injectable, injectable };
+function isInjectable(obj: any): obj is Injectable<any> {
+	return obj instanceof Injectable;
+}
+
+function isInjectableLike(
+	obj: any,
+): obj is { reference: Reference<any>; implementation: Function } {
+	return (
+		obj &&
+		obj.reference instanceof Reference &&
+		typeof obj.implementation === "function"
+	);
+}
+
+export { Injectable, injectable, isInjectableLike, isInjectable };

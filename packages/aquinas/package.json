@@ -55,6 +55,7 @@
 		"release:rc": "pnpm check && pnpm build && pnpm version prerelease --preid=rc"
 	},
 	"devDependencies": {
+		"vitest": "3.2.4",
 		"@types/node": "24.6.0",
 		"esbuild": "0.25.10",
 		"terser": "5.44.0",
@@ -63,6 +64,6 @@
 		"@biomejs/biome": "2.2.4"
 	},
 	"dependencies": {
-		"inversify": "7.10.2"
+		"@owja/ioc": "1.0.1"
 	}
 }

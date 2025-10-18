@@ -1,28 +1,25 @@
-interface Reference<T> {
+class Reference<T> {
 	id: symbol;
-	name: string;
-	__INJECTION_REFERENCE_FLAG: boolean;
 	__type: T;
+
 	toJSON: () => string;
+
+	constructor(public readonly name: string) {
+		this.id = Symbol.for(name);
+		this.toJSON = () => name;
+	}
 }
-
-const reference = <T>(name: string): Reference<T> => {
-	const id = Symbol.for(name);
-	const __INJECTION_REFERENCE_FLAG = true;
-	const __type = null as T;
-	const toJSON = () => name;
-
-	return {
-		id,
-		name,
-		__INJECTION_REFERENCE_FLAG,
-		__type,
-		toJSON,
-	};
-};
 
 function derivedReference<T>(base: string, ref: Reference<any>) {
-	return reference<T>(`${base}:${ref.toJSON()}`);
+	return new Reference<T>(`${base}:${ref.toJSON()}`);
 }
 
-export { type Reference, reference, derivedReference };
+function reference<T>(name: string): Reference<T> {
+	return new Reference<T>(name);
+}
+
+function isReference(obj: any): obj is Reference<any> {
+	return obj instanceof Reference;
+}
+
+export { Reference, reference, derivedReference, isReference };

@@ -1,127 +1,162 @@
-import { Container, ContainerModule } from "inversify";
+import { Container } from "@owja/ioc";
+import { sanitizeErrorMessage } from "../utils/sanitize-error";
+import { AquinasError } from "./error";
+import { type Injectable, isInjectable } from "./injectable";
 import type { Reference } from "./reference";
+import { isReference } from "./reference";
 
-type Bindable<T> = {
-	reference: Reference<T>;
-	factory: (dock: Dock) => T;
-};
+class Dock {
+	private referenceRegistry: Set<Reference<any>>;
+	private bindingRegistry: Map<Reference<any>, (dock: Dock) => any>;
+	private container: Container;
 
-interface Dock {
-	referenceRegistry: Set<Reference<any>>;
-	bindingRegistry: Map<Reference<any>, (dock: Dock) => any>;
-
-	merge(...sources: Dock[]): void;
-	register(...bindables: Bindable<any>[]): void;
-	overwrite(...bindables: Bindable<any>[]): void;
-
-	getContainer(): Container;
-	get<U>(reference: Reference<U>): U;
-	get<T extends Record<string, Reference<any>>>(
-		reference: T,
-	): { [K in keyof T]: T[K] extends Reference<infer V> ? V : never };
-
-	safeGet<U>(reference: Reference<U>): U | undefined;
-}
-
-function dock(): Dock {
-	const container = new Container();
-	const referenceRegistry: Set<Reference<any>> = new Set();
-	const bindingRegistry = new Map<Reference<any>, (dock: Dock) => any>();
-
-	function bind<T>(reference: Reference<T>) {
-		const binding = container.bind<T>(reference.id);
-
-		if (typeof reference.id === "symbol") {
-			referenceRegistry.add(reference);
-		}
-
-		return binding;
+	constructor() {
+		this.container = new Container();
+		this.referenceRegistry = new Set();
+		this.bindingRegistry = new Map();
 	}
 
-	function get<U>(reference: Reference<U>): U;
-	function get<T extends Record<string, Reference<any>>>(
-		reference: T,
-	): { [K in keyof T]: T[K] extends Reference<infer V> ? V : never };
-	function get(reference: any): any {
+	private bindReference<T>(
+		reference: Reference<T>,
+		implementation: (dock: Dock) => T,
+		opts?: {
+			rebind?: boolean;
+		},
+	) {
+		this.referenceRegistry.add(reference);
+		this.bindingRegistry.set(reference, implementation);
+
+		try {
+			if (opts?.rebind) {
+				this.container
+					.rebind<any>(reference.id)
+					.toFactory(() => implementation(this))
+					.inSingletonScope();
+			} else {
+				this.container
+					.bind<any>(reference.id)
+					.toFactory(() => implementation(this))
+					.inSingletonScope();
+			}
+		} catch (error) {
+			throw new AquinasError(
+				`failed to bind reference with name "${reference.name}" - ${sanitizeErrorMessage(error)}`,
+			);
+		}
+	}
+
+	merge(...sources: Dock[]): void {
+		for (const source of sources) {
+			if (!isDock(source)) {
+				throw new AquinasError(
+					`Invalid dock: expected a Dock object but got ${typeof source}`,
+				);
+			}
+
+			for (const ref of source.referenceRegistry) {
+				const implementation = source.bindingRegistry.get(ref);
+				if (!implementation) {
+					throw new AquinasError(
+						"Missing implementation during merge",
+					);
+				}
+
+				this.bindReference(ref, implementation);
+			}
+		}
+	}
+
+	register(...bindables: Injectable<any>[]): void {
+		for (const bindable of bindables) {
+			if (!isInjectable(bindable)) {
+				throw new AquinasError(
+					`Invalid injectable: expected an Injectable object but got ${typeof bindable}`,
+				);
+			}
+
+			this.bindReference(bindable.reference, bindable.implementation);
+		}
+	}
+
+	override(...injectableLike: Injectable<any>[]): void {
+		for (const bindable of injectableLike) {
+			const { reference, implementation } = bindable;
+			if (!reference || !implementation) {
+				throw new AquinasError(
+					`Invalid injectable-like: expected a reference+implementation but got ${typeof bindable}`,
+				);
+			}
+
+			this.bindReference(reference, implementation, { rebind: true });
+		}
+	}
+
+	delete<T>(reference: Reference<T>): void {
+		if (!isReference(reference)) {
+			throw new AquinasError(
+				`Invalid reference: Expected a Reference object but got ${typeof reference}`,
+			);
+		}
+
+		this.referenceRegistry.delete(reference);
+		this.bindingRegistry.delete(reference);
+		this.container.remove(reference.id);
+	}
+
+	get<T>(reference: Reference<T> | Record<string, Reference<any>>): any {
 		if ("id" in reference) {
-			return container.get(reference.id);
+			if (!isReference(reference)) {
+				throw new AquinasError(
+					`Invalid reference: Expected a Reference object but got ${typeof reference}`,
+				);
+			}
+
+			try {
+				return this.container.get(reference.id);
+			} catch (error) {
+				throw new AquinasError(
+					`Failed to get reference with name "${String(
+						reference.name,
+					)}": ${sanitizeErrorMessage(error)}`,
+				);
+			}
 		}
 
 		const result: Record<string, any> = {};
 		for (const key in reference) {
-			result[key] = container.get(reference[key].id);
+			const ref = reference[key];
+			if (!isReference(ref)) {
+				throw new AquinasError(
+					`Invalid reference for key "${key}": Expected a Reference object but got ${typeof ref}`,
+				);
+			}
+
+			result[key] = this.container.get(ref.id);
 		}
 		return result;
 	}
 
-	const dock: Dock = {
-		referenceRegistry,
-		bindingRegistry,
-
-		merge(...sources: Dock[]) {
-			const modules: ContainerModule[] = sources.map(
-				(source) =>
-					new ContainerModule(({ bind }) => {
-						for (const reference of source.referenceRegistry) {
-							const factory =
-								source.bindingRegistry.get(reference);
-							if (!factory)
-								throw new Error("Missing factory during merge");
-
-							referenceRegistry.add(reference);
-							bindingRegistry.set(reference, factory);
-
-							bind(reference.id)
-								.toDynamicValue(() => factory(dock))
-								.inSingletonScope();
-						}
-					}),
+	safeGet<T>(reference: Reference<T>): T | undefined {
+		if (!isReference(reference)) {
+			throw new AquinasError(
+				`Invalid reference: Expected a Reference object but got ${typeof reference}`,
 			);
+		}
 
-			container.loadSync(...modules);
-		},
-
-		register(...bindables) {
-			for (const bindable of bindables) {
-				referenceRegistry.add(bindable.reference);
-				bindingRegistry.set(bindable.reference, bindable.factory);
-
-				bind(bindable.reference)
-					.toDynamicValue(() => bindable.factory(dock))
-					.inSingletonScope();
-			}
-		},
-
-		overwrite(...bindables) {
-			for (const bindable of bindables) {
-				if (container.isBound(bindable.reference.id)) {
-					container.unbind(bindable.reference.id);
-				}
-				referenceRegistry.add(bindable.reference);
-				bindingRegistry.set(bindable.reference, bindable.factory);
-
-				bind(bindable.reference)
-					.toDynamicValue(() => bindable.factory(dock))
-					.inSingletonScope();
-			}
-		},
-
-		getContainer() {
-			return container;
-		},
-
-		get,
-
-		safeGet(reference) {
-			try {
-				return get(reference);
-			} catch {
-				return undefined;
-			}
-		},
-	};
-
-	return dock;
+		try {
+			return this.container.get(reference.id);
+		} catch {
+			return undefined;
+		}
+	}
 }
 
-export { dock, type Dock };
+function dock(): Dock {
+	return new Dock();
+}
+
+function isDock(obj: any): obj is Dock {
+	return obj instanceof Dock;
+}
+
+export { Dock, dock, isDock };

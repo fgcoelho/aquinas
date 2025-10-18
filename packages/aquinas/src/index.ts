@@ -1,4 +1,4 @@
-export * from "./lib/dock";
-export * from "./lib/injectable";
-export * from "./lib/reference";
-export * from "./lib/resolve-references";
+export { type Dock, dock } from "./lib/dock";
+export { type Injectable, injectable } from "./lib/injectable";
+export { derivedReference, type Reference, reference } from "./lib/reference";
+export { resolveReferences } from "./lib/resolve-references";
