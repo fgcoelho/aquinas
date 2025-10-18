@@ -44,24 +44,24 @@ export const DatabaseErrorFilter = injectable(FilterReference(DatabaseErrorRefer
     }));
 ```
 
-## Overwriting Injectables
+## Overriding Injectables
 
-Suppose you have a bunch of usecases in your application, each one depending on a repository.
+Suppose you build a bunch of repositories in your application, each one being an injectable.
 
-It may happen that you want to run some usecases in a transaction, but that's hard to do if your usecases depend directly on the repository.
+It may happen that you want to run these repositories in a transaction context, but that's impossible to do if your repositories use the default database connection.
 
-You can solve this problem by joining together some features of Aquinas by overwriting the global DatabaseService.
+The normal (but not ideal) solution to this problem would be to instantiate repositories upon use, and pass the database connection as a parameter.
 
-The code below will make all database calls go through the transaction context, no matter how nested the repositories are.
+But since we are dealing with IoC, we can create a DatabaseConnection which all repositories depend on, and then overwrite this connection in a transaction context.
 
-```ts tab="transaction.i-service.ts"
-import { sql } from "@/database/sql";
-import { dock, injectable, resolveReferences } from "aquinas";
-import { DatabaseServiceReference } from "./database.i-service";
+All repositories will then use the transaction database connection, without having to change their code.
 
+The code below illustrates this approach.
+
+```ts tab="transaction.service.ts"
 export const TransactionService = injectable(TransactionServiceRef)
-	.deps({ databaseService: DatabaseServiceReference })
-	.implements(({ ctx, databaseService }) => {
+	.deps({ databaseConnection: DatabaseConnectionReference })
+	.implements(({ ctx, databaseConnection }) => {
 		let refs = {};
 
 		return {
@@ -72,17 +72,13 @@ export const TransactionService = injectable(TransactionServiceRef)
 			},
 
 			async run(fn) {
-				return await databaseService.transaction(async (tx) => {
-					const transactionDock = dock();
+				return await databaseConnection.transaction(async (tx) => {
+					const transactionDock = cloneDock(ctx);
 
-					transactionDock.merge(ctx.dock);
-
-					const NewDatabaseService = injectable(
-						DatabaseServiceReference,
-					)
-                     .implements(() => tx);
-
-					transactionDock.overwrite(NewDatabaseService);
+					transactionDock.override({
+						reference: DatabaseConnectionReference,
+						implementation: () => tx,
+					});
 
 					const deps = resolveReferences(refs, transactionDock);
 
@@ -98,29 +94,28 @@ export const TransactionService = injectable(TransactionServiceRef)
 	});
 ```
 
-This allows you to run any usecase in a transaction, without having to change the usecase/repository itself.
+This allows you to run any repository in a transaction, without having to change the repository itself.
 
 ```ts tab="some.usecase.ts"
-import { injectable } from "aquinas";
-import { RegisterUserUsecaseReference } from "./register-user.i-usecase";
-import { ActivateUserSubscriptionUsecaseReference } from "./activate-user-subscription.i-usecase";
-import { TransactionServiceReference } from "./transaction.i-service";
-
-export const SomeUsecase = injectable(SomeUsecaseRef)
+export const OnboardUsecase = injectable(OnboardUsecaseReference)
   .deps({
     transactionService: TransactionServiceReference,
   })
-  .implements(({ registerUserUsecase, activateUserSubscriptionUsecase, transactionService }) => ({
-    async execute({ user }) {
+  .implements(({ transactionService }) => ({
+    async execute() {
+	  const user = new User();
+
+	  const subscription = new Subscription();
+
       await transactionService
         .deps({
-          registerUserUsecase: RegisterUserUsecaseReference,
-          activateUserSubscriptionUsecase: ActivateUserSubscriptionUsecaseReference,
+          userRepository: UserRepositoryReference,
+          subscriptionRepository: SubscriptionRepositoryReference,
         })
         .run(async ({ undo }) => {
-            await registerUserUsecase.execute(user);
+            await userRepository.create(user);
 
-            await activateUserSubscriptionUsecase.execute(user.id);
+            await subscriptionRepository.create(subscription);
         });
     },
   }));
