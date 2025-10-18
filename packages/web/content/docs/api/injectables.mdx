@@ -11,7 +11,7 @@ Injectables are objects that represent the implementation of a reference.
 
 ### implements
 
-Once you have a reference, you can create an injectable and implement it by using the `injectable` function:
+Create an injectable and implement it by using the `injectable` function:
 
 ```ts
 import { injectable } from "aquinas";
@@ -27,7 +27,7 @@ const UserService = injectable(UserServiceReference)
 
 ### deps
 
-You can also declare dependencies for your injectable using the `deps` method:
+Declare dependencies for your injectable using the `deps` method:
 
 ```ts
 import { injectable } from "aquinas";
@@ -53,7 +53,7 @@ const RegisterUserUsecase = injectable(RegisterUserUsecaseReference)
 
 ### init
 
-In case you need to run some local logic before your injectable is ready to be used, you can use the `init` method:
+Use the `init` method to run synchronous initialization logic before implementing the injectable:
 
 ```ts
 import { injectable } from "aquinas";
@@ -61,7 +61,7 @@ import { createUtils } from "./utils";
 import { UserRepositoryReference } from "./user-repository.reference";
 
 const UserRepository = injectable(UserRepositoryReference)
-    .init(async () => {
+    .init(() => {
         const utils = createUtils()
 
         return {
