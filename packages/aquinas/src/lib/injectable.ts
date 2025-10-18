@@ -6,11 +6,16 @@ type ResolveRefs<T extends RefMap> = {
 	[K in keyof T]: T[K] extends Reference<infer U> ? U : never;
 };
 
-class Injectable<T> {
-	reference: Reference<T>;
-	implementation: (dock: Dock) => T;
+type InjectableImplementation<T> = (dock: Dock) => T;
 
-	constructor(reference: Reference<T>, implementation: (dock: Dock) => T) {
+class Injectable<T = any> {
+	reference: Reference<T>;
+	implementation: InjectableImplementation<T>;
+
+	constructor(
+		reference: Reference<T>,
+		implementation: InjectableImplementation<T>,
+	) {
 		this.reference = reference;
 		this.implementation = implementation;
 	}

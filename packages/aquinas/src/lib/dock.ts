@@ -55,6 +55,7 @@ class Dock {
 
 			for (const ref of source.referenceRegistry) {
 				const implementation = source.bindingRegistry.get(ref);
+
 				if (!implementation) {
 					throw new AquinasError(
 						"Missing implementation during merge",
@@ -66,7 +67,7 @@ class Dock {
 		}
 	}
 
-	register(...bindables: Injectable<any>[]): void {
+	register(...bindables: Injectable[]): void {
 		for (const bindable of bindables) {
 			if (!isInjectable(bindable)) {
 				throw new AquinasError(
@@ -78,16 +79,25 @@ class Dock {
 		}
 	}
 
-	override(...injectableLike: Injectable<any>[]): void {
-		for (const bindable of injectableLike) {
-			const { reference, implementation } = bindable;
-			if (!reference || !implementation) {
-				throw new AquinasError(
-					`Invalid injectable-like: expected a reference+implementation but got ${typeof bindable}`,
-				);
-			}
+	override(
+		reference: Reference<any>,
+		injectableOrImplementation: Injectable | ((dock: Dock) => any),
+	): void {
+		if (
+			!isInjectable(injectableOrImplementation) &&
+			typeof injectableOrImplementation !== "function"
+		) {
+			throw new AquinasError(
+				`Invalid override: expected an Injectable or implementation function but got ${typeof injectableOrImplementation}`,
+			);
+		}
 
-			this.bindReference(reference, implementation, { rebind: true });
+		if (isInjectable(injectableOrImplementation)) {
+			this.override(reference, injectableOrImplementation.implementation);
+		} else {
+			this.bindReference(reference, injectableOrImplementation, {
+				rebind: true,
+			});
 		}
 	}
 
