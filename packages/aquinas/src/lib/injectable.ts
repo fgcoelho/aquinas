@@ -81,4 +81,10 @@ function isInjectableLike(
 	);
 }
 
-export { Injectable, injectable, isInjectableLike, isInjectable };
+export {
+	Injectable,
+	type InjectableImplementation,
+	injectable,
+	isInjectableLike,
+	isInjectable,
+};
