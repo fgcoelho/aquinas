@@ -203,21 +203,8 @@ class Dock {
 		}
 	}
 
-	find<T>(predicate: (reference: Reference<T>) => boolean): T[];
-	find(predicate: (reference: Reference<any>) => boolean): any[] {
-		const matchingValues: any[] = [];
-
-		for (const reference of this.referenceRegistry) {
-			try {
-				if (predicate(reference)) {
-					const value = this.container.get(reference.id);
-
-					matchingValues.push(value);
-				}
-			} catch {}
-		}
-
-		return matchingValues;
+	find(predicate: (reference: Reference<any>) => boolean): Reference<any>[] {
+		return Array.from(this.referenceRegistry).filter(predicate);
 	}
 }
 
