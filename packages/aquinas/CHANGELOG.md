@@ -1,5 +1,9 @@
 # aquinas
 
+### 0.0.6 (2025/11/16)
+
+- refactor: simplify find method to return only matching references
+
 ### 0.0.5 (2025/10/22)
 
 - fix: patch 'dock.get' missing typing overload
