@@ -1,5 +1,9 @@
 # aquinas
 
+### 0.0.7 (2025/12/1)
+
+- feat: enhance Reference class to support generic name types
+
 ### 0.0.6 (2025/11/16)
 
 - refactor: simplify find method to return only matching references
