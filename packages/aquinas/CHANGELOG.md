@@ -1,5 +1,9 @@
 # aquinas
 
+### 0.0.8 (2025/12/1)
+
+- refactor: remove 'cloneDock' and 'derivedReference' functions
+
 ### 0.0.7 (2025/12/1)
 
 - feat: enhance Reference class to support generic name types
