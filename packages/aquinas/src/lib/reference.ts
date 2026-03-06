@@ -25,12 +25,8 @@ const reference: ReferenceFn = (<T>(name: string): Reference<T> =>
 reference.create = <const N extends string>(name: N): Reference<unknown, N> =>
 	new Reference<unknown, N>(name);
 
-function derivedReference<T>(base: string, ref: Reference<any>) {
-	return new Reference<T>(`${base}:${ref.toJSON()}` as string);
-}
-
 function isReference(obj: any): obj is Reference<any> {
 	return obj instanceof Reference;
 }
 
-export { Reference, reference, derivedReference, isReference };
+export { Reference, reference, isReference };

@@ -212,14 +212,8 @@ function dock(): Dock {
 	return new Dock();
 }
 
-function cloneDock(source: Dock): Dock {
-	const newDock = new Dock();
-	newDock.merge(source);
-	return newDock;
-}
-
 function isDock(obj: any): obj is Dock {
 	return obj instanceof Dock;
 }
 
-export { Dock, dock, cloneDock, isDock };
+export { Dock, dock, isDock };
